@@ -4,6 +4,7 @@ import { Mic, MicOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -36,48 +37,72 @@ export default function Recorder({ onTranscriptChange, initialTranscript }: Reco
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const finalTranscriptRef = useRef(initialTranscript);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscriptRef.current += event.results[i][0].transcript + ' ';
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      onTranscriptChange(finalTranscriptRef.current + interimTranscript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error', event.error);
+      toast({
+        variant: 'destructive',
+        title: 'Speech Recognition Error',
+        description: event.error,
+      });
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, [onTranscriptChange, toast]);
 
   useEffect(() => {
     finalTranscriptRef.current = initialTranscript;
   }, [initialTranscript]);
 
   const toggleRecording = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast({
+        variant: 'destructive',
+        title: 'Unsupported Browser',
+        description: 'Speech recognition is not supported in this browser.',
+      });
+      return;
+    }
+
     if (isRecording) {
       recognitionRef.current?.stop();
     } else {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert('Speech recognition is not supported in this browser.');
-        return;
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event) => {
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscriptRef.current += event.results[i][0].transcript + ' ';
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        onTranscriptChange(finalTranscriptRef.current + interimTranscript);
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
-      };
-      
-      recognition.onend = () => {
-        setIsRecording(false);
-      }
-
-      recognitionRef.current = recognition;
-      recognition.start();
+      finalTranscriptRef.current = initialTranscript;
+      recognitionRef.current?.start();
       setIsRecording(true);
     }
   };
