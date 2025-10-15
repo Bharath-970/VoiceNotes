@@ -36,7 +36,6 @@ type RecorderProps = {
 export default function Recorder({ onTranscriptChange, initialTranscript }: RecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const finalTranscriptRef = useRef(initialTranscript);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -51,23 +50,24 @@ export default function Recorder({ onTranscriptChange, initialTranscript }: Reco
     recognition.lang = 'en-US';
 
     recognition.onresult = (event) => {
+      let finalTranscript = '';
       let interimTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
+      for (let i = 0; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscriptRef.current += event.results[i][0].transcript + ' ';
+          finalTranscript += event.results[i][0].transcript;
         } else {
           interimTranscript += event.results[i][0].transcript;
         }
       }
-      onTranscriptChange(finalTranscriptRef.current + interimTranscript);
+      onTranscriptChange(finalTranscript + interimTranscript);
     };
-
+    
     recognition.onerror = (event) => {
       console.error('Speech recognition error', event.error);
       toast({
         variant: 'destructive',
         title: 'Speech Recognition Error',
-        description: event.error,
+        description: event.error === 'not-allowed' ? 'Microphone access denied.' : event.error,
       });
       setIsRecording(false);
     };
@@ -83,10 +83,6 @@ export default function Recorder({ onTranscriptChange, initialTranscript }: Reco
     };
   }, [onTranscriptChange, toast]);
 
-  useEffect(() => {
-    finalTranscriptRef.current = initialTranscript;
-  }, [initialTranscript]);
-
   const toggleRecording = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -101,7 +97,6 @@ export default function Recorder({ onTranscriptChange, initialTranscript }: Reco
     if (isRecording) {
       recognitionRef.current?.stop();
     } else {
-      finalTranscriptRef.current = initialTranscript;
       recognitionRef.current?.start();
       setIsRecording(true);
     }
