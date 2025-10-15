@@ -1,7 +1,7 @@
 'use client';
 
 import type { Note } from '@/lib/types';
-import { useFormState } from 'react-dom';
+import { useActionState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -55,7 +55,7 @@ export default function NoteEditor({ note }: { note?: Note }) {
     },
   });
 
-  const [formState, formAction] = useFormState(saveNote, { message: '' });
+  const [formState, formAction] = useActionState(saveNote, { message: '' });
 
   const currentContent = watch('content');
   const currentTags = watch('tags');
@@ -104,7 +104,7 @@ export default function NoteEditor({ note }: { note?: Note }) {
   return (
     <div className="relative h-full">
       <form action={formAction} className="flex h-full flex-col">
-        <input type="hidden" name="id" value={note?.id} />
+        <input type="hidden" name="id" value={note?.id || ''} />
         {currentTags.map((tag, index) => (
           <input key={index} type="hidden" name="tags[]" value={tag} />
         ))}
