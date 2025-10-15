@@ -52,7 +52,12 @@ export async function saveNote(prevState: FormState, formData: FormData) {
   }
 
   revalidatePath('/notes');
-  redirect(`/notes/${savedNote.id}`);
+  if (savedNote) {
+    redirect(`/notes/${savedNote.id}`);
+  } else {
+    // Fallback redirect if savedNote is not available for some reason
+    redirect('/notes');
+  }
 }
 
 export async function removeNote(formData: FormData) {
