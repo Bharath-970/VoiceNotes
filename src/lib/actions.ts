@@ -21,8 +21,9 @@ export type FormState = {
 };
 
 export async function saveNote(prevState: FormState, formData: FormData) {
+  const rawId = formData.get('id');
   const validatedFields = NoteSchema.safeParse({
-    id: formData.get('id') || undefined,
+    id: rawId || undefined,
     title: formData.get('title'),
     content: formData.get('content'),
     tags: formData.getAll('tags[]'),
