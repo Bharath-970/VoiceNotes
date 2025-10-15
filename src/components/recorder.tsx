@@ -37,6 +37,9 @@ export default function Recorder({ onTranscriptChange, initialTranscript }: Reco
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { toast } = useToast();
+  
+  const onTranscriptChangeRef = useRef(onTranscriptChange);
+  onTranscriptChangeRef.current = onTranscriptChange;
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -49,17 +52,18 @@ export default function Recorder({ onTranscriptChange, initialTranscript }: Reco
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
+    let finalTranscript = initialTranscript;
+
     recognition.onresult = (event) => {
-      let finalTranscript = '';
       let interimTranscript = '';
-      for (let i = 0; i < event.results.length; ++i) {
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           finalTranscript += event.results[i][0].transcript;
         } else {
           interimTranscript += event.results[i][0].transcript;
         }
       }
-      onTranscriptChange(finalTranscript + interimTranscript);
+      onTranscriptChangeRef.current(finalTranscript + interimTranscript);
     };
     
     recognition.onerror = (event) => {
@@ -81,7 +85,7 @@ export default function Recorder({ onTranscriptChange, initialTranscript }: Reco
     return () => {
       recognitionRef.current?.stop();
     };
-  }, [onTranscriptChange, toast]);
+  }, [initialTranscript, toast]);
 
   const toggleRecording = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -97,10 +101,23 @@ export default function Recorder({ onTranscriptChange, initialTranscript }: Reco
     if (isRecording) {
       recognitionRef.current?.stop();
     } else {
-      recognitionRef.current?.start();
-      setIsRecording(true);
+      // We need to re-initialize the final transcript from the initial prop when starting a new recording session
+      // if the initialTranscript prop has changed. The easiest way is to let the effect handle it.
+      if (recognitionRef.current) {
+         recognitionRef.current.start();
+         setIsRecording(true);
+      }
     }
   };
+  
+  // This effect handles stopping the recognition when the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   return (
     <Button
