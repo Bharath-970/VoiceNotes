@@ -42,11 +42,15 @@ export async function saveNote(prevState: FormState, formData: FormData) {
   try {
     if (id) {
       savedNote = await updateNote(id, data);
-      if (!savedNote) {
-        return { message: 'Failed to update note. Note not found.' };
-      }
     } else {
       savedNote = await createNote(data);
+    }
+
+    if (!savedNote) {
+      if (id) {
+        return { message: 'Failed to update note. Note not found.' };
+      }
+      return { message: 'Failed to create note.'}
     }
   } catch (e) {
     return { message: 'Database error: Failed to save note.' };
